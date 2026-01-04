@@ -1,10 +1,26 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GuessResult } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy initialization to prevent crashes during module evaluation if env vars are missing
+let ai: GoogleGenAI | null = null;
+
+const getAiClient = () => {
+  if (!ai) {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      console.error("API_KEY is not defined in process.env");
+      // Throwing here might be caught by the calling function, preventing a full app crash
+      throw new Error("API Key missing");
+    }
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+};
 
 export const identifySketch = async (base64Image: string): Promise<GuessResult> => {
   try {
+    const client = getAiClient();
+    
     // Remove the data URL prefix if present to get just the base64 string
     const base64Data = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
 
@@ -23,7 +39,7 @@ export const identifySketch = async (base64Image: string): Promise<GuessResult> 
          Focus on the most likely objects.
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: model,
       contents: {
         parts: [
