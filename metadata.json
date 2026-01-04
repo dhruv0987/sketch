@@ -1,0 +1,5 @@
+{
+  "name": "AI Sketch Battle",
+  "description": "A beat-the-clock drawing game where you test your sketching skills against the Gemini AI. Can you draw the target word fast enough for the AI to guess it?",
+  "requestFramePermissions": []
+}
