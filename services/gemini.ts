@@ -6,8 +6,11 @@ let ai: GoogleGenAI | null = null;
 
 const getAiClient = () => {
   if (!ai) {
+    // This value is replaced at build time by vite.config.ts
+    // It will be an empty string "" if missing, not undefined.
     const apiKey = process.env.API_KEY;
-    if (!apiKey) {
+    
+    if (!apiKey || apiKey === "" || apiKey === "undefined") {
       console.error("API_KEY is not defined in process.env");
       throw new Error("API Key missing");
     }
@@ -24,7 +27,7 @@ export const identifySketch = async (base64Image: string): Promise<GuessResult> 
     // Note: The app now sends JPEG, so we check for both png and jpeg
     const base64Data = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
 
-    const model = "gemini-2.5-flash";
+    const model = "gemini-3-flash-preview";
     
     const prompt = `
       I am playing a Pictionary-style game. I am drawing an object and you need to guess what it is.
@@ -64,7 +67,8 @@ export const identifySketch = async (base64Image: string): Promise<GuessResult> 
               type: Type.ARRAY,
               items: { type: Type.STRING }
             }
-          }
+          },
+          propertyOrdering: ["commentary", "guesses"]
         }
       }
     });
@@ -87,7 +91,7 @@ export const identifySketch = async (base64Image: string): Promise<GuessResult> 
     // Specific error for API key issues
     if (error.message && error.message.includes("API Key missing")) {
         return {
-            commentary: "Config Error: API Key is missing!",
+            commentary: "Config Error: API_KEY missing in Settings!",
             guesses: []
         };
     }
