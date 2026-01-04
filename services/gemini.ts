@@ -9,7 +9,6 @@ const getAiClient = () => {
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
       console.error("API_KEY is not defined in process.env");
-      // Throwing here might be caught by the calling function, preventing a full app crash
       throw new Error("API Key missing");
     }
     ai = new GoogleGenAI({ apiKey });
@@ -21,12 +20,12 @@ export const identifySketch = async (base64Image: string): Promise<GuessResult> 
   try {
     const client = getAiClient();
     
-    // Remove the data URL prefix if present to get just the base64 string
+    // Remove the data URL prefix if present.
+    // Note: The app now sends JPEG, so we check for both png and jpeg
     const base64Data = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
 
     const model = "gemini-2.5-flash";
     
-    // Improved prompt for accuracy
     const prompt = `
       I am playing a Pictionary-style game. I am drawing an object and you need to guess what it is.
       
@@ -45,7 +44,7 @@ export const identifySketch = async (base64Image: string): Promise<GuessResult> 
         parts: [
           {
             inlineData: {
-              mimeType: "image/png",
+              mimeType: "image/jpeg", // We are now sending optimized JPEGs
               data: base64Data
             }
           },
@@ -70,7 +69,11 @@ export const identifySketch = async (base64Image: string): Promise<GuessResult> 
       }
     });
 
-    const jsonText = response.text || "{}";
+    let jsonText = response.text || "{}";
+    
+    // SANITIZATION: Sometimes the model returns markdown blocks even with JSON schema set
+    jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+
     const parsed = JSON.parse(jsonText);
 
     return {
@@ -78,8 +81,17 @@ export const identifySketch = async (base64Image: string): Promise<GuessResult> 
       guesses: parsed.guesses || []
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error identifying sketch:", error);
+    
+    // Specific error for API key issues
+    if (error.message && error.message.includes("API Key missing")) {
+        return {
+            commentary: "Config Error: API Key is missing!",
+            guesses: []
+        };
+    }
+
     return {
       commentary: "I'm having trouble seeing...",
       guesses: []

@@ -133,7 +133,8 @@ function App() {
     setIsAiThinking(true);
 
     try {
-      const imageData = canvasRef.current.getDataUrl();
+      // Use optimized image getter for smaller payload and proper JPEG format
+      const imageData = canvasRef.current.getOptimizedDataUrl();
       const result = await identifySketch(imageData);
 
       // Only speak if the commentary is new and we aren't about to end the game immediately

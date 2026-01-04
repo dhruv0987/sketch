@@ -13,6 +13,7 @@ export interface GuessResult {
 export interface DrawingCanvasRef {
   clear: () => void;
   getDataUrl: () => string;
+  getOptimizedDataUrl: () => string;
   isEmpty: () => boolean;
 }
 

@@ -37,6 +37,46 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       const canvas = canvasRef.current;
       return canvas ? canvas.toDataURL('image/png') : '';
     },
+    getOptimizedDataUrl: () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return '';
+
+      // Create a temporary canvas to resize/compress
+      const tempCanvas = document.createElement('canvas');
+      const MAX_SIZE = 800; // Cap max dimension to 800px
+      let width = canvas.width;
+      let height = canvas.height;
+
+      if (width > height) {
+        if (width > MAX_SIZE) {
+          height = Math.round((height * MAX_SIZE) / width);
+          width = MAX_SIZE;
+        }
+      } else {
+        if (height > MAX_SIZE) {
+          width = Math.round((width * MAX_SIZE) / height);
+          height = MAX_SIZE;
+        }
+      }
+
+      tempCanvas.width = width;
+      tempCanvas.height = height;
+      const ctx = tempCanvas.getContext('2d');
+      
+      if (ctx) {
+        // 1. Fill white (handles any transparency issues)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        
+        // 2. Draw scaled image
+        ctx.drawImage(canvas, 0, 0, width, height);
+        
+        // 3. Return as JPEG (smaller, faster, AI-friendly)
+        return tempCanvas.toDataURL('image/jpeg', 0.8);
+      }
+      
+      return canvas.toDataURL('image/jpeg', 0.8);
+    },
     isEmpty: () => !hasDrawnRef.current
   }));
 
