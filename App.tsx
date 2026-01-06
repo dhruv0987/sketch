@@ -417,6 +417,13 @@ function App() {
 
       </main>
 
+      {/* Copyright Watermark */}
+      <div className="absolute bottom-2 right-2 z-[60] pointer-events-none opacity-50">
+        <p className="text-[10px] text-slate-500 font-bold font-mono tracking-widest uppercase">
+          Done by Druv
+        </p>
+      </div>
+
       {/* Overlays */}
       {renderOverlay()}
     </div>
