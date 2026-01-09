@@ -81,8 +81,12 @@ function App() {
     
     setGameState(GameState.PLAYING);
     setTimeLeft(GAME_DURATION_SECONDS);
-    setAiCommentary("I'm guessing...");
-    speak(`Okay ${playerName}, draw a ${word}!`);
+    
+    // Update both text and speech to greet the user
+    const startMsg = `Ready for the challenge, ${playerName}?`;
+    setAiCommentary(startMsg);
+    speak(`${startMsg} Draw a ${word}!`);
+    
     setLastGuesses([]);
     setIsAiThinking(false);
     
