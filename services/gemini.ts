@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { GuessResult } from "../types";
 
 // Lazy initialization to prevent crashes during module evaluation if env vars are missing
@@ -23,11 +23,11 @@ export const identifySketch = async (base64Image: string): Promise<GuessResult> 
   try {
     const client = getAiClient();
     
-    // Remove the data URL prefix if present.
-    // Note: The app now sends JPEG, so we check for both png and jpeg
-    const base64Data = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+    // Robustly remove data URL prefix
+    const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
 
-    const model = "gemini-3-flash-preview";
+    // Switch to 2.5-flash for reliable multimodal performance
+    const model = "gemini-2.5-flash";
     
     const prompt = `
       I am playing a Pictionary-style game. I am drawing an object and you need to guess what it is.
@@ -47,7 +47,7 @@ export const identifySketch = async (base64Image: string): Promise<GuessResult> 
         parts: [
           {
             inlineData: {
-              mimeType: "image/jpeg", // We are now sending optimized JPEGs
+              mimeType: "image/jpeg",
               data: base64Data
             }
           },
@@ -58,6 +58,13 @@ export const identifySketch = async (base64Image: string): Promise<GuessResult> 
       },
       config: {
         temperature: 0.4,
+        // Add safety settings to prevent blocking simple drawings
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+        ],
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -95,9 +102,18 @@ export const identifySketch = async (base64Image: string): Promise<GuessResult> 
             guesses: []
         };
     }
+    
+    // Surface the actual error for debugging if possible
+    // Common errors: 400 (Bad Request), 403 (Forbidden), 503 (Overloaded)
+    let debugMsg = "I'm having trouble seeing...";
+    if (error.message) {
+        if (error.message.includes("429")) debugMsg = "Too many requests, slow down!";
+        else if (error.message.includes("503")) debugMsg = "I'm a bit overloaded right now.";
+        else if (error.message.includes("SAFETY")) debugMsg = "I can't look at that.";
+    }
 
     return {
-      commentary: "I'm having trouble seeing...",
+      commentary: debugMsg,
       guesses: []
     };
   }

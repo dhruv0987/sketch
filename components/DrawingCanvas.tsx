@@ -18,6 +18,12 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   // Track if canvas is empty to avoid sending blank images
   const hasDrawnRef = useRef(false);
 
+  // Helper to fill background
+  const fillWhite = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, width, height);
+  };
+
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
     clear: () => {
@@ -26,11 +32,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Fill with white background (important for AI vision)
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
+      fillWhite(ctx, canvas.width, canvas.height);
       hasDrawnRef.current = false;
     },
     getDataUrl: () => {
@@ -65,8 +67,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       
       if (ctx) {
         // 1. Fill white (handles any transparency issues)
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, width, height);
+        fillWhite(ctx, width, height);
         
         // 2. Draw scaled image
         ctx.drawImage(canvas, 0, 0, width, height);
@@ -92,9 +93,9 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         tempCanvas.width = canvas.width;
         tempCanvas.height = canvas.height;
         
-        // FIX: Ensure valid dimensions before drawing to avoid InvalidStateError
-        if (canvas.width > 0 && canvas.height > 0) {
-             tempCtx?.drawImage(canvas, 0, 0);
+        // Ensure we save valid content
+        if (canvas.width > 0 && canvas.height > 0 && tempCtx) {
+             tempCtx.drawImage(canvas, 0, 0);
         }
 
         // Resize
@@ -109,12 +110,10 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           ctx.strokeStyle = strokeColor;
           ctx.lineWidth = strokeWidth;
           
-          // Refill background white if it was cleared
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          // Refill background white
+          fillWhite(ctx, canvas.width, canvas.height);
 
           // Restore content
-          // FIX: Ensure valid dimensions before restoring
           if (tempCanvas.width > 0 && tempCanvas.height > 0) {
             ctx.drawImage(tempCanvas, 0, 0);
           }
@@ -126,17 +125,21 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     // Initial size
     handleResize();
     
-    // Initial white fill
-    const canvas = canvasRef.current;
-    if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Extra safety: force white background on mount after a small tick
+    const timer = setTimeout(() => {
+        const canvas = canvasRef.current;
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            if (ctx && !hasDrawnRef.current) {
+                fillWhite(ctx, canvas.width, canvas.height);
+            }
         }
-    }
+    }, 100);
 
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+        window.removeEventListener('resize', handleResize);
+        clearTimeout(timer);
+    };
   }, [strokeColor, strokeWidth]);
 
   const getPoint = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent): Point | null => {
